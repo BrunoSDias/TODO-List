@@ -3,28 +3,17 @@
 class TodosController < ApplicationController
   before_action :authenticate_user
 
-  before_action :set_todo, only: %i[show destroy update complete uncomplete]
-
   rescue_from ActiveRecord::RecordNotFound do
     render_json(404, todo: { id: 'not found' })
   end
 
   def index
-    todos =
-      case params[:status]&.strip&.downcase
-      when 'overdue' then Todo.overdue
-      when 'completed' then Todo.completed
-      when 'uncompleted' then Todo.uncompleted
-      else Todo.all
-      end
-
-    json = todos.where(user_id: current_user.id).map(&:serialize_as_json)
-
+    json = TodosService.new.list_all(user: current_user, params: params)
     render_json(200, todos: json)
   end
 
   def create
-    todo = current_user.todos.create(todo_params)
+    todo = TodosService.new.create_todo(user: current_user, params: params)
 
     if todo.valid?
       render_json(201, todo: todo.serialize_as_json)
@@ -34,44 +23,39 @@ class TodosController < ApplicationController
   end
 
   def show
-    render_json(200, todo: @todo.serialize_as_json)
+    todo = TodosService.new.find_todo(user: current_user, params: params)
+    render_json(200, todo: todo.serialize_as_json)
   end
 
   def destroy
-    @todo.destroy
-
-    render_json(200, todo: @todo.serialize_as_json)
+    todo = TodosService.new.destroy_todo(user: current_user, params: params)
+    render_json(200, todo: todo.serialize_as_json)
   end
 
   def update
-    @todo.update(todo_params)
-
-    if @todo.valid?
-      render_json(200, todo: @todo.serialize_as_json)
+    todo = TodosService.new.update_todo(user: current_user, params: params)
+    if todo.valid?
+      render_json(200, todo: todo.serialize_as_json)
     else
-      render_json(422, todo: @todo.errors.as_json)
+      render_json(422, todo: todo.errors.as_json)
     end
   end
 
   def complete
-    @todo.complete!
+    todo = TodosService.new.complete_todo(user: current_user, params: params)
 
-    render_json(200, todo: @todo.serialize_as_json)
+    render_json(200, todo: todo.serialize_as_json)
   end
 
   def uncomplete
-    @todo.uncomplete!
+    todo = TodosService.new.uncomplete_todo(user: current_user, params: params)
 
-    render_json(200, todo: @todo.serialize_as_json)
+    render_json(200, todo: todo.serialize_as_json)
   end
 
   private
 
     def todo_params
       params.require(:todo).permit(:title, :due_at)
-    end
-
-    def set_todo
-      @todo = current_user.todos.find(params[:id])
     end
 end
