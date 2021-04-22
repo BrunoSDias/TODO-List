@@ -56,7 +56,9 @@ class TodosService
   end
 
   private
-  def todo_params(params)
+  def todo_params(arg)
+    params = arg.is_a?(ActionController::Parameters) ? arg : ActionController::Parameters.new(arg)
+
     params.require(:todo).permit(:title, :due_at)
   end
 end
